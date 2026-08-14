@@ -1,0 +1,602 @@
+<title>Minesweeper</title>
+<style>
+  :root {
+    /* Cool slate ground with an amber hazard accent — dark is the base theme */
+    --bg: #0f141c;
+    --panel: #171e2a;
+    --panel-edge: #263141;
+    --inset: #0b0f16;
+    --cell: #2a3546;
+    --cell-hi: #33415699;
+    --cell-top: rgba(255,255,255,.07);
+    --cell-open: #141b25;
+    --text: #e7ecf3;
+    --muted: #8593a6;
+    --accent: #f5a524;
+    --accent-dim: #a9781f;
+    --danger: #ff5964;
+    --grid-line: #0a0e14;
+    --good: #52c98a;
+    /* classic minesweeper digit colors, retuned for dark ground */
+    --n1: #5b9dff; --n2: #52c98a; --n3: #ff7a85; --n4: #b08cff;
+    --n5: #ffb454; --n6: #38d1c4; --n7: #cbd3de; --n8: #8492a4;
+    --shadow: 0 18px 50px -20px rgba(0,0,0,.75);
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #e6ebf1;
+      --panel: #f4f7fa;
+      --panel-edge: #d2dae4;
+      --inset: #d7dee7;
+      --cell: #ccd6e2;
+      --cell-hi: #dce4ee;
+      --cell-top: rgba(255,255,255,.85);
+      --cell-open: #eaf0f6;
+      --text: #1a2432;
+      --muted: #61707f;
+      --accent: #cf7c07;
+      --accent-dim: #b06a06;
+      --danger: #d63a44;
+      --grid-line: #b6c0cd;
+      --good: #1f9d57;
+      --n1: #1f6fe0; --n2: #1f9d57; --n3: #d63a44; --n4: #7a4fd0;
+      --n5: #b8681a; --n6: #12938a; --n7: #3a4656; --n8: #6a7787;
+      --shadow: 0 18px 44px -22px rgba(37,55,80,.45);
+      color-scheme: light;
+    }
+  }
+  /* Viewer toggle overrides the media query in both directions */
+  :root[data-theme="dark"] {
+    --bg: #0f141c; --panel: #171e2a; --panel-edge: #263141; --inset: #0b0f16;
+    --cell: #2a3546; --cell-hi: #33415699; --cell-top: rgba(255,255,255,.07);
+    --cell-open: #141b25; --text: #e7ecf3; --muted: #8593a6; --accent: #f5a524;
+    --accent-dim: #a9781f; --danger: #ff5964; --grid-line: #0a0e14; --good: #52c98a;
+    --n1: #5b9dff; --n2: #52c98a; --n3: #ff7a85; --n4: #b08cff;
+    --n5: #ffb454; --n6: #38d1c4; --n7: #cbd3de; --n8: #8492a4;
+    --shadow: 0 18px 50px -20px rgba(0,0,0,.75); color-scheme: dark;
+  }
+  :root[data-theme="light"] {
+    --bg: #e6ebf1; --panel: #f4f7fa; --panel-edge: #d2dae4; --inset: #d7dee7;
+    --cell: #ccd6e2; --cell-hi: #dce4ee; --cell-top: rgba(255,255,255,.85);
+    --cell-open: #eaf0f6; --text: #1a2432; --muted: #61707f; --accent: #cf7c07;
+    --accent-dim: #b06a06; --danger: #d63a44; --grid-line: #b6c0cd; --good: #1f9d57;
+    --n1: #1f6fe0; --n2: #1f9d57; --n3: #d63a44; --n4: #7a4fd0;
+    --n5: #b8681a; --n6: #12938a; --n7: #3a4656; --n8: #6a7787;
+    --shadow: 0 18px 44px -22px rgba(37,55,80,.45); color-scheme: light;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+      radial-gradient(1200px 600px at 50% -10%, color-mix(in srgb, var(--accent) 7%, transparent), transparent 60%),
+      var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: clamp(16px, 4vw, 44px) 16px 60px;
+    gap: 22px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .mono { font-family: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace; }
+
+  /* ---- Header ---- */
+  header { text-align: center; max-width: 620px; }
+  .eyebrow {
+    font-size: .72rem; letter-spacing: .28em; text-transform: uppercase;
+    color: var(--accent); font-weight: 700; margin: 0 0 6px;
+  }
+  h1 {
+    margin: 0; font-size: clamp(1.9rem, 6vw, 2.9rem); font-weight: 800;
+    letter-spacing: -.02em; text-wrap: balance; line-height: 1;
+  }
+  .sub { margin: 12px 0 0; color: var(--muted); font-size: .92rem; line-height: 1.5; }
+  .sub kbd {
+    font-family: inherit; font-weight: 600; color: var(--text);
+    background: color-mix(in srgb, var(--text) 8%, transparent);
+    border-radius: 5px; padding: 1px 6px; font-size: .82em;
+  }
+
+  /* ---- Difficulty selector ---- */
+  .levels {
+    display: flex; gap: 6px; padding: 5px;
+    background: var(--panel); border: 1px solid var(--panel-edge);
+    border-radius: 13px; flex-wrap: wrap; justify-content: center;
+  }
+  .levels button {
+    font: inherit; cursor: pointer; border: 0; border-radius: 9px;
+    padding: 9px 16px; background: transparent; color: var(--muted);
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    transition: background .16s, color .16s;
+  }
+  .levels button b { font-size: .9rem; font-weight: 700; color: inherit; }
+  .levels button span { font-size: .68rem; letter-spacing: .04em; opacity: .8; }
+  .levels button:hover { color: var(--text); background: color-mix(in srgb, var(--text) 6%, transparent); }
+  .levels button[aria-pressed="true"] {
+    background: color-mix(in srgb, var(--accent) 16%, var(--panel));
+    color: var(--text); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+  .levels button[aria-pressed="true"] b { color: var(--accent); }
+
+  /* ---- Console ---- */
+  .console {
+    background: var(--panel);
+    border: 1px solid var(--panel-edge);
+    border-radius: 18px;
+    padding: 16px;
+    box-shadow: var(--shadow);
+    max-width: 96vw;
+  }
+
+  .hud {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; margin-bottom: 14px;
+  }
+  .lcd {
+    font-family: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+    font-weight: 700; font-size: 1.5rem; letter-spacing: .06em;
+    font-variant-numeric: tabular-nums;
+    background: var(--inset); color: var(--accent);
+    padding: 8px 14px; border-radius: 10px; min-width: 92px; text-align: center;
+    box-shadow: inset 0 2px 6px rgba(0,0,0,.4);
+    text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 45%, transparent);
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .lcd small { font-size: .5em; letter-spacing: .16em; color: var(--muted); text-shadow: none; }
+  .lcd.timer { color: var(--good); text-shadow: 0 0 12px color-mix(in srgb, var(--good) 40%, transparent); }
+
+  .face {
+    font-size: 1.6rem; line-height: 1; cursor: pointer;
+    width: 54px; height: 54px; border-radius: 13px;
+    background: var(--cell);
+    border: 1px solid var(--panel-edge);
+    box-shadow: inset 0 1px 0 var(--cell-top), 0 2px 4px rgba(0,0,0,.25);
+    transition: transform .1s, background .16s;
+    display: grid; place-items: center;
+  }
+  .face:hover { background: var(--cell-hi); }
+  .face:active { transform: translateY(1px) scale(.97); }
+
+  /* ---- Board ---- */
+  .board-wrap { overflow-x: auto; padding: 3px; max-width: 100%; }
+  .board {
+    display: grid;
+    gap: 3px;
+    background: var(--grid-line);
+    padding: 3px;
+    border-radius: 8px;
+    margin: 0 auto;
+    width: max-content;
+  }
+  .cell {
+    width: var(--cs, 30px); height: var(--cs, 30px);
+    border: 0; padding: 0; margin: 0; cursor: pointer;
+    border-radius: 5px;
+    font-family: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+    font-weight: 800;
+    font-size: calc(var(--cs, 30px) * .52);
+    line-height: 1;
+    display: grid; place-items: center;
+    background: var(--cell);
+    box-shadow: inset 0 1px 0 var(--cell-top), 0 1px 2px rgba(0,0,0,.28);
+    transition: background .12s, transform .06s, box-shadow .12s;
+    user-select: none; -webkit-user-select: none;
+  }
+  .cell:hover:not(.open):not(:disabled) { background: var(--cell-hi); }
+  .cell:active:not(.open) { transform: scale(.94); }
+  .cell:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; z-index: 2; }
+
+  .cell.open {
+    background: var(--cell-open);
+    box-shadow: inset 0 1px 3px rgba(0,0,0,.34);
+    cursor: default;
+  }
+  .cell[data-n="1"] { color: var(--n1); }
+  .cell[data-n="2"] { color: var(--n2); }
+  .cell[data-n="3"] { color: var(--n3); }
+  .cell[data-n="4"] { color: var(--n4); }
+  .cell[data-n="5"] { color: var(--n5); }
+  .cell[data-n="6"] { color: var(--n6); }
+  .cell[data-n="7"] { color: var(--n7); }
+  .cell[data-n="8"] { color: var(--n8); }
+
+  .cell.flag::after { content: "🚩"; font-size: calc(var(--cs,30px) * .5); }
+  .cell.mine::after { content: "💣"; font-size: calc(var(--cs,30px) * .52); }
+  .cell.exploded { background: var(--danger); box-shadow: inset 0 1px 3px rgba(0,0,0,.4); }
+  .cell.exploded::after { content: "💥"; }
+  .cell.wrongflag::after { content: "❌"; opacity: .85; }
+
+  @keyframes pop { 0% { transform: scale(.6); opacity: .3; } 100% { transform: scale(1); opacity: 1; } }
+  .anim .cell.open { animation: pop .16s ease-out; }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-6px)} 40%{transform:translateX(6px)} 60%{transform:translateX(-4px)} 80%{transform:translateX(4px)} }
+  .console.boom { animation: shake .34s ease; }
+
+  /* ---- Controls / footer ---- */
+  .controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center; }
+  .flagtoggle {
+    font: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: 9px;
+    padding: 9px 15px; border-radius: 11px; color: var(--text);
+    background: var(--panel); border: 1px solid var(--panel-edge);
+    transition: background .16s, box-shadow .16s;
+  }
+  .flagtoggle .dot {
+    width: 34px; height: 20px; border-radius: 999px; position: relative;
+    background: color-mix(in srgb, var(--text) 18%, transparent); transition: background .18s;
+    flex: none;
+  }
+  .flagtoggle .dot::after {
+    content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px;
+    border-radius: 50%; background: #fff; transition: transform .18s;
+    box-shadow: 0 1px 3px rgba(0,0,0,.4);
+  }
+  .flagtoggle[aria-pressed="true"] { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent); }
+  .flagtoggle[aria-pressed="true"] .dot { background: var(--accent); }
+  .flagtoggle[aria-pressed="true"] .dot::after { transform: translateX(14px); }
+  .status-line { color: var(--muted); font-size: .86rem; min-height: 1.2em; text-align: center; }
+  .status-line.win { color: var(--good); font-weight: 600; }
+  .status-line.lose { color: var(--danger); font-weight: 600; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<header>
+  <p class="eyebrow">Field Console</p>
+  <h1>Minesweeper</h1>
+  <p class="sub">
+    <kbd>Left-click</kbd> clears a cell · <kbd>Right-click</kbd> plants a flag · the first click is always safe.
+    Clear every safe cell without detonating a mine.
+  </p>
+</header>
+
+<div class="levels" id="levels" role="group" aria-label="Difficulty">
+  <button data-level="beginner" aria-pressed="true"><b>Beginner</b><span>9 × 9 · 10</span></button>
+  <button data-level="intermediate" aria-pressed="false"><b>Intermediate</b><span>16 × 16 · 40</span></button>
+  <button data-level="expert" aria-pressed="false"><b>Expert</b><span>16 × 30 · 99</span></button>
+</div>
+
+<div class="console" id="console">
+  <div class="hud">
+    <div class="lcd mines" id="mineCount" aria-label="Mines remaining">💣 <span>10</span></div>
+    <button class="face" id="face" title="New game" aria-label="New game">🙂</button>
+    <div class="lcd timer" id="timer" aria-label="Time elapsed">⏱ <span>000</span></div>
+  </div>
+  <div class="board-wrap">
+    <div class="board" id="board" aria-label="Minefield"></div>
+  </div>
+</div>
+
+<div class="controls">
+  <button class="flagtoggle" id="flagToggle" aria-pressed="false" title="When on, tapping plants a flag">
+    <span class="dot" aria-hidden="true"></span> Flag mode
+  </button>
+</div>
+<p class="status-line" id="status">Pick a cell to begin.</p>
+
+<script>
+/* ============================================================================
+   Game logic — a near-verbatim port of the Python Minesweeper class.
+   Same methods, same algorithms: first-click-safe placement, BFS flood-fill,
+   running revealed-count win check, flags, game-over, reveal-all-mines.
+============================================================================ */
+class Minesweeper {
+  constructor(rows, cols, numMines) {
+    if (numMines >= rows * cols) throw new Error("Too many mines for the board size");
+    this.rows = rows;
+    this.cols = cols;
+    this.numMines = numMines;
+    // -1 marks a mine; 0..8 is the adjacent-mine count.
+    this.board = Array.from({ length: rows }, () => Array(cols).fill(0));
+    this.revealed = Array.from({ length: rows }, () => Array(cols).fill(false));
+    this.flagged = Array.from({ length: rows }, () => Array(cols).fill(false));
+    this.revealedCount = 0;      // number of safe cells uncovered so far
+    this.gameOver = false;       // set true once a mine is revealed
+    this.minesPlaced = false;
+    this.exploded = null;        // [r, c] of the mine the player stepped on
+  }
+
+  *neighbors(r, c) {
+    for (const dr of [-1, 0, 1]) {
+      for (const dc of [-1, 0, 1]) {
+        if (dr === 0 && dc === 0) continue;
+        const nr = r + dr, nc = c + dc;
+        if (nr >= 0 && nr < this.rows && nc >= 0 && nc < this.cols) yield [nr, nc];
+      }
+    }
+  }
+
+  placeMines(safeR, safeC) {
+    // Everything except the first-clicked cell and its 8 neighbors is fair game.
+    const forbidden = new Set([safeR + "," + safeC]);
+    for (const [nr, nc] of this.neighbors(safeR, safeC)) forbidden.add(nr + "," + nc);
+
+    const candidates = [];
+    for (let r = 0; r < this.rows; r++)
+      for (let c = 0; c < this.cols; c++)
+        if (!forbidden.has(r + "," + c)) candidates.push([r, c]);
+
+    for (const [r, c] of sampleDistinct(candidates, this.numMines)) this.board[r][c] = -1;
+
+    this.countAdjacent();
+    this.minesPlaced = true;
+  }
+
+  countAdjacent() {
+    for (let r = 0; r < this.rows; r++) {
+      for (let c = 0; c < this.cols; c++) {
+        if (this.board[r][c] === -1) continue;
+        let n = 0;
+        for (const [nr, nc] of this.neighbors(r, c)) if (this.board[nr][nc] === -1) n++;
+        this.board[r][c] = n;
+      }
+    }
+  }
+
+  reveal(r, c) {
+    if (this.gameOver) return true;        // frozen; ignore further clicks
+    if (this.flagged[r][c]) return true;   // flagged cells are protected
+    if (this.revealed[r][c]) return true;
+    if (this.board[r][c] === -1) {
+      this.revealed[r][c] = true;
+      this.gameOver = true;
+      this.exploded = [r, c];
+      this.revealAllMines();
+      return false;                        // boom
+    }
+
+    // BFS flood-fill: 0-cells expand; numbered cells are revealed but stop.
+    const queue = [[r, c]];
+    let head = 0;
+    this.revealed[r][c] = true;
+    this.revealedCount++;
+    while (head < queue.length) {
+      const [cr, cc] = queue[head++];
+      if (this.board[cr][cc] !== 0) continue;
+      for (const [nr, nc] of this.neighbors(cr, cc)) {
+        if (!this.revealed[nr][nc] && !this.flagged[nr][nc]) {
+          this.revealed[nr][nc] = true;
+          this.revealedCount++;
+          queue.push([nr, nc]);
+        }
+      }
+    }
+    return true;
+  }
+
+  revealAllMines() {
+    // Uncover every mine; never touch revealedCount (mines aren't safe cells),
+    // and leave correctly-flagged mines flagged so the player keeps the credit.
+    for (let r = 0; r < this.rows; r++)
+      for (let c = 0; c < this.cols; c++)
+        if (this.board[r][c] === -1 && !this.flagged[r][c]) this.revealed[r][c] = true;
+  }
+
+  flag(r, c) {
+    if (this.gameOver) return;
+    if (this.revealed[r][c]) return;       // can't flag an open cell
+    this.flagged[r][c] = !this.flagged[r][c];
+  }
+
+  isWon() {
+    return this.revealedCount === this.rows * this.cols - this.numMines;
+  }
+
+  flagCount() {
+    let n = 0;
+    for (let r = 0; r < this.rows; r++)
+      for (let c = 0; c < this.cols; c++) if (this.flagged[r][c]) n++;
+    return n;
+  }
+}
+
+// random.sample(candidates, k) — pick k distinct entries via a partial Fisher–Yates shuffle.
+function sampleDistinct(arr, k) {
+  const a = arr.slice();
+  for (let i = 0; i < k; i++) {
+    const j = i + Math.floor(Math.random() * (a.length - i));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a.slice(0, k);
+}
+
+/* ============================================================================
+   UI layer — the browser equivalent of the Python play() loop.
+   DRAW = render to the DOM · READ = click/key events · APPLY+CHECK = same methods.
+============================================================================ */
+const LEVELS = {
+  beginner:     { rows: 9,  cols: 9,  mines: 10, cs: 34 },
+  intermediate: { rows: 16, cols: 16, mines: 40, cs: 29 },
+  expert:       { rows: 16, cols: 30, mines: 99, cs: 25 },
+};
+
+const boardEl  = document.getElementById("board");
+const faceEl   = document.getElementById("face");
+const mineEl   = document.getElementById("mineCount").querySelector("span");
+const timeEl   = document.getElementById("timer").querySelector("span");
+const statusEl = document.getElementById("status");
+const flagBtn  = document.getElementById("flagToggle");
+const levelsEl = document.getElementById("levels");
+
+let game, cells, level = "beginner";
+let flagMode = false;
+let timer = null, seconds = 0, started = false;
+
+function pad3(n) {
+  const neg = n < 0;
+  const s = String(Math.min(999, Math.abs(n))).padStart(neg ? 2 : 3, "0");
+  return neg ? "-" + s : s;
+}
+
+function startTimer() {
+  if (started) return;
+  started = true;
+  timer = setInterval(() => {
+    seconds++;
+    timeEl.textContent = pad3(seconds);
+  }, 1000);
+}
+function stopTimer() { clearInterval(timer); timer = null; }
+
+function newGame() {
+  const cfg = LEVELS[level];
+  game = new Minesweeper(cfg.rows, cfg.cols, cfg.mines);
+  stopTimer(); started = false; seconds = 0;
+  timeEl.textContent = "000";
+  faceEl.textContent = "🙂";
+  statusEl.textContent = "Pick a cell to begin.";
+  statusEl.className = "status-line";
+  document.getElementById("console").classList.remove("boom");
+
+  // Build the grid once; keep cell references and update them in place.
+  boardEl.style.setProperty("--cs", cfg.cs + "px");
+  boardEl.style.gridTemplateColumns = `repeat(${cfg.cols}, var(--cs))`;
+  boardEl.classList.remove("anim");
+  boardEl.innerHTML = "";
+  cells = [];
+  for (let r = 0; r < cfg.rows; r++) {
+    const row = [];
+    for (let c = 0; c < cfg.cols; c++) {
+      const b = document.createElement("button");
+      b.className = "cell";
+      b.type = "button";
+      b.setAttribute("aria-label", `row ${r} column ${c}`);
+      b.addEventListener("click", () => onReveal(r, c));
+      b.addEventListener("contextmenu", (e) => { e.preventDefault(); onFlag(r, c); });
+      b.addEventListener("keydown", (e) => {
+        if (e.key === "f" || e.key === "F") { e.preventDefault(); onFlag(r, c); }
+      });
+      boardEl.appendChild(b);
+      row.push(b);
+    }
+    cells.push(row);
+  }
+  // allow the pop animation only after the first paint
+  requestAnimationFrame(() => boardEl.classList.add("anim"));
+  updateMineCount();
+}
+
+function onReveal(r, c) {
+  if (game.gameOver || game.isWon()) return;
+  if (flagMode) { onFlag(r, c); return; }
+  if (game.flagged[r][c]) return;
+  if (!game.minesPlaced) game.placeMines(r, c);   // first click is safe
+  startTimer();
+  const alive = game.reveal(r, c);
+  render();
+  if (!alive) return lose();
+  if (game.isWon()) return win();
+}
+
+function onFlag(r, c) {
+  if (game.gameOver || game.isWon()) return;
+  if (game.revealed[r][c]) return;
+  if (!game.minesPlaced) startTimer();  // flagging first also starts the clock
+  game.flag(r, c);
+  render();
+}
+
+function render() {
+  const cfg = LEVELS[level];
+  for (let r = 0; r < cfg.rows; r++) {
+    for (let c = 0; c < cfg.cols; c++) {
+      const el = cells[r][c];
+      const val = game.board[r][c];
+      el.className = "cell";
+      el.removeAttribute("data-n");
+      if (game.revealed[r][c]) {
+        el.classList.add("open");
+        if (val === -1) {
+          el.classList.add("mine");
+          if (game.exploded && game.exploded[0] === r && game.exploded[1] === c)
+            el.classList.add("exploded");
+        } else if (val > 0) {
+          el.dataset.n = val;
+          el.textContent = val;
+        } else {
+          el.textContent = "";
+        }
+      } else if (game.flagged[r][c]) {
+        el.classList.add("flag");
+        el.textContent = "";
+      } else {
+        el.textContent = "";
+      }
+    }
+  }
+  updateMineCount();
+}
+
+function updateMineCount() {
+  mineEl.textContent = pad3(game.numMines - game.flagCount());
+}
+
+function win() {
+  stopTimer();
+  faceEl.textContent = "😎";
+  statusEl.textContent = `Cleared in ${seconds}s — every safe cell found. Nice work.`;
+  statusEl.className = "status-line win";
+  // Auto-flag remaining mines for a tidy finish.
+  for (let r = 0; r < game.rows; r++)
+    for (let c = 0; c < game.cols; c++)
+      if (game.board[r][c] === -1 && !game.flagged[r][c]) {
+        game.flagged[r][c] = true;
+        cells[r][c].className = "cell flag";
+      }
+  updateMineCount();
+}
+
+function lose() {
+  stopTimer();
+  faceEl.textContent = "😵";
+  statusEl.textContent = "Boom. You hit a mine — press the face to try again.";
+  statusEl.className = "status-line lose";
+  const con = document.getElementById("console");
+  con.classList.add("boom");
+  // Mark cells you flagged that weren't actually mines.
+  for (let r = 0; r < game.rows; r++)
+    for (let c = 0; c < game.cols; c++)
+      if (game.flagged[r][c] && game.board[r][c] !== -1)
+        cells[r][c].className = "cell open wrongflag";
+}
+
+/* ---- wiring ---- */
+faceEl.addEventListener("click", newGame);
+faceEl.addEventListener("mousedown", () => { if (!game.gameOver && !game.isWon()) faceEl.textContent = "😮"; });
+document.addEventListener("mouseup", () => { if (game && !game.gameOver && !game.isWon()) faceEl.textContent = "🙂"; });
+
+flagBtn.addEventListener("click", () => {
+  flagMode = !flagMode;
+  flagBtn.setAttribute("aria-pressed", String(flagMode));
+});
+
+levelsEl.addEventListener("click", (e) => {
+  const btn = e.target.closest("button");
+  if (!btn) return;
+  level = btn.dataset.level;
+  for (const b of levelsEl.querySelectorAll("button"))
+    b.setAttribute("aria-pressed", String(b === btn));
+  newGame();
+});
+
+// Surface any runtime error (including ones thrown inside click handlers)
+// onto the page, so a silent failure can't masquerade as "nothing happened".
+window.addEventListener("error", (e) => {
+  statusEl.textContent = "⚠ Error: " + (e.message || e.error);
+  statusEl.className = "status-line lose";
+});
+
+try {
+  newGame();
+} catch (err) {
+  statusEl.textContent = "⚠ Load error: " + err.message;
+  statusEl.className = "status-line lose";
+}
+</script>
