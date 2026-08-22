@@ -171,7 +171,7 @@ def parse_command(text, rows, cols):
     return action, r, c
 
 
-def play(rows=9, cols=9, num_mines=10):
+def play(rows, cols, num_mines):
     """Run an interactive game of Minesweeper in the terminal."""
     game = Minesweeper(rows, cols, num_mines)
     print(f"Minesweeper - {rows}x{cols}, {num_mines} mines.")
@@ -216,6 +216,19 @@ def play(rows=9, cols=9, num_mines=10):
             game.reveal(r, c)
         print()
 
-
+def select_difficulty():
+    options = {'b':(9, 9, 10), 'i':(16, 16, 40), 'e':(16, 30, 99)}
+    prompt = "Select a difficulty: Beginner (b), Intermediate (i), Expert (e): "
+    while True:
+        try:
+            dif = input(prompt).strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            print("\nBye")
+            raise SystemExit
+        if dif in options:
+            return options[dif]
+        prompt = "Select a real difficulty: Beginner (b), Intermediate (i), Expert (e): "
+            
 if __name__ == "__main__":
-    play()
+    rows, cols, num_mines = select_difficulty()
+    play(rows, cols, num_mines)
