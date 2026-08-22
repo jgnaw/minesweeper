@@ -20,8 +20,8 @@ tracks player-visible state.
   the clicked cell *and its 8 neighbors* from the candidate pool.
 - **`random.sample(candidates, num_mines)`** picks distinct cells in one shot — avoids the
   classic bug where a naive loop picks the same cell twice and places too few mines.
-- Counts are filled in a separate `_count_adjacent()` sweep for readability.
-- A shared `_neighbors(r, c)` helper does bounds-checking in one place.
+- Counts are filled in a separate `count_adjacent()` sweep for readability.
+- A shared `neighbors(r, c)` helper does bounds-checking in one place.
 
 ### Flood-fill reveal (BFS)
 The reveal rule:
@@ -63,7 +63,7 @@ Two correctness details:
 - `render()` shows `F` for flagged cells.
 
 ### Reveal-all-mines on loss
-- **`_reveal_all_mines()`** sweeps the board in the mine branch of `reveal`.
+- **`reveal_all_mines()`** sweeps the board in the mine branch of `reveal`.
 - **The trap:** it must NOT increment `revealed_count` (mines aren't safe cells) or a
   loss could falsely read as a win. It sets `revealed` directly, same as the mine branch.
 - **Design choice:** skips cells you flagged, so a *correctly*-flagged mine stays `F`
@@ -83,7 +83,7 @@ Key points:
   count, non-numbers, out-of-bounds are all caught here and re-prompted. The class only
   ever receives well-formed commands and never has to defend itself.
 - **First-click safety lives in the loop:** the first `reveal` triggers `place_mines(r, c)`
-  first (guarded by `_mines_placed`), so the opening click is always safe.
+  first (guarded by `mines_placed`), so the opening click is always safe.
 - Command grammar: `r ROW COL` reveal, `f ROW COL` flag, `q` quit. 0-indexed.
 - **Windows gotcha:** avoid non-ASCII (em-dashes) in `print` strings — cp1252 console
   mangles them (`�`) or errors. Use plain hyphens.
